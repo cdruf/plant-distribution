@@ -21,42 +21,49 @@ ax.set_xlim(0, n - 1)
 ax.set_xticks([])
 ax.set_ylim(0, n - 1)
 ax.set_yticks([])
-
-# Construct the scatter which will be updated during animation
 scat = ax.scatter(0, 0)
 
 row_idx = 0
+coordinates = []
+colors = []
 
 
-def update(t):
+def update(frame):
     global row_idx
-    coordinates = []
-    colors = []
     for idx, row in df.iloc[row_idx:, :].iterrows():
-        if row['t'] > t:
+        _, t, species, x, y, _ = row
+        if t > frame:
             row_idx = idx
             break
-        coordinates.append((row.x, row.y))
-        col = 'w' if row.species == 0 else 'r'
-        colors.append(col)
+        if species == 0:
+            i = coordinates.index((x, y))
+            coordinates.remove((x, y))
+            del colors[i]
+        elif species == -1:
+            coordinates.append((row.x, row.y))
+            colors.append('r')
+        else:
+            raise RuntimeError("Unknown species")
 
-    if len(coordinates) > 0:
-        scat.set_edgecolors(colors)
-        arr = np.array(coordinates)
-        scat.set_sizes(np.repeat(10, len(arr)))
-        scat.set_offsets(arr)
+    scat.set_offsets(coordinates)
+    scat.set_edgecolors(colors)
+    scat.set_sizes(np.repeat(10, len(coordinates)))
 
     return scat,
 
 
 # animation = FuncAnimation(fig, update, interval=10)
-animation = FuncAnimation(fig, update, frames=np.linspace(0, T, 100), blit=True)
-# plt.show()
+animation = FuncAnimation(fig, update, frames=np.linspace(0, T, 500), blit=True)
+plt.show()
 
+# %%
+
+print("Save video to disk")
 animation.save(DATA_FOLDER / "video.mp4")
-video = animation.to_html5_video()
-html = display.HTML(video)
-display.display(html)
+print("Video saved")
 
-# good practice to close the plt object.
+# video = animation.to_html5_video()
+# html = display.HTML(video)
+# display.display(html)
+
 plt.close()
