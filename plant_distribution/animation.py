@@ -41,7 +41,10 @@ def update(frame):
             del colors[i]
         elif species == -1:
             coordinates.append((row.x, row.y))
-            colors.append('r')
+            colors.append('#fb6542')
+        elif species == 1:
+            coordinates.append((row.x, row.y))
+            colors.append('#3f681c')
         else:
             raise RuntimeError("Unknown species")
 

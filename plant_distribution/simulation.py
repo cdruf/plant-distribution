@@ -25,14 +25,14 @@ n = 100  # grid size
 grid = np.zeros((n, n), dtype=int)
 
 T = 5000  # planning horizon
-# Place benight plants
-probability_benign = 0.1
-# grid = (np.random.rand(n, n) < probability_benign).astype(int)
 
+avg_weed_life = 120  # days
+avg_weed_proliferation_time = 50
+weed_spread_range = 3
 
-avg_weed_lifetime = 120  # days
-avg_time_till_proliferation = 50
-spread_range = 3
+avg_plant_life = 300
+avg_plant_proliferation_time = 300
+plant_spread_range = 7
 
 Event = namedtuple("Event", ["t", "species", "x", "y", "n_plants"])
 event_history = []
@@ -41,12 +41,16 @@ event_history = []
 class Plant:
     next_id = 0
 
-    def __init__(self, env_, species: int, x_, y_):
+    def __init__(self, env_, species: int, x_, y_,
+                 avg_lifetime, avg_proliferation_time, max_spread_range):
         self.env = env_
         self.env.n_plants += 1
         self.species = species
         self.x = x_
         self.y = y_
+        self.avg_lifetime = avg_lifetime
+        self.avg_proliferation_time = avg_proliferation_time
+        self.max_spread_range = max_spread_range
         self.id = Plant.next_id
         Plant.next_id += 1
         assert 0 <= x_ < n
@@ -54,13 +58,13 @@ class Plant:
         grid[self.x, self.y] = species
         print(f"{env_.now} - new {species} at ({x_}, {y_} - n = {env_.n_plants})")
         event_history.append(Event(env_.now, species, x_, y_, env_.n_plants))
-        lifetime = np.random.geometric(1.0 / avg_weed_lifetime)
+        lifetime = np.random.geometric(1.0 / avg_lifetime)
         self.life_over_event = env_.timeout(lifetime)
         self.env.process(self.live_and_prosper())
 
     def live_and_prosper(self):
         while True:
-            inter_arrival_time = np.random.geometric(1.0 / avg_time_till_proliferation)
+            inter_arrival_time = np.random.geometric(1.0 / self.avg_proliferation_time)
             ret = yield self.env.timeout(inter_arrival_time) | self.life_over_event
 
             if self.life_over_event in ret:  # plant died
@@ -74,26 +78,33 @@ class Plant:
             offset_x = offset_y = 0
             while offset_x == 0 and offset_y == 0:
                 offset_x, offset_y = np.random.randint(
-                    low=-spread_range, high=spread_range + 1, size=2)
+                    low=-self.max_spread_range, high=self.max_spread_range + 1, size=2)
             new_x = min(max(self.x + offset_x, 0), n - 1)
             new_y = min(max(self.y + offset_y, 0), n - 1)
 
             if grid[new_x, new_y] == 0:
                 # plant creates offspring
-                Plant(self.env, self.species, new_x, new_y)
+                Plant(self.env, self.species, new_x, new_y,
+                      self.avg_lifetime, self.avg_proliferation_time, self.max_spread_range)
 
 
 def run_sim():
     env = simpy.Environment()
     env.n_plants = 0
 
+    # Place some benight plants
+    probability_benign = 0.1
+    xys = (np.random.rand(n, n) < probability_benign).astype(int)
+    xys[0:4, 0:4] = 0  # keep free for weeds
+    xs, ys = np.where(xys)
+    for i, x in enumerate(xs):
+        Plant(env, 1, x, ys[i], avg_plant_life, avg_plant_proliferation_time, plant_spread_range)
+
     # Plase some weeds in the top left
     for x, y in product(range(4), range(4)):
-        Plant(env, -1, x, y)
+        Plant(env, -1, x, y, avg_weed_life, avg_weed_proliferation_time, weed_spread_range)
 
-    print(f"Initial sum: {grid.sum()}")
     env.run(until=T)
-    print(f"Final sum: {grid.sum()}")
 
     # Store history
     df = pd.DataFrame(event_history)
