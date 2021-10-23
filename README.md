@@ -5,8 +5,8 @@ The images below are taken from the animation that visualizes the simulation. It
 
 ```html
 <p float="left">
-  <img src="img/Figure_1.png" width="100"/>
-  <img src="img/Figure_2.png" width="100"/> 
+  <img src="./img/Figure_1.png" width="100"/>
+  <img src="/img/Figure_2.png" width="100"/> 
   <img src="img/Figure_3.png" width="100"/>
 </p>
 <p float="left">
